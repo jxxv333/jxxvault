@@ -1,0 +1,83 @@
+name: Precios Europa
+# Cada 15 minutos (días laborables, durante la sesión de Xetra) pide a Yahoo el precio de los ETFs europeos
+# y lo guarda en data/precios.json, que la app lee sola. También se puede lanzar a mano desde Actions.
+on:
+  schedule:
+    - cron: "4,19,34,49 6-17 * * 1-5"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: precios
+jobs:
+  precios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet yfinance
+      - name: Descargar precios de Yahoo
+        shell: python
+        run: |
+          import json, time, pathlib
+          import yfinance as yf
+
+          # Símbolo en la app -> símbolos de Yahoo a probar en orden (Xetra en euros y, si falla, Milán)
+          EUROPA = {"VUAA": ["VUAA.DE", "VUAA.MI"]}
+
+          def barras(sym):
+              t = yf.Ticker(sym)
+              h = t.history(period="5d", interval="5m").dropna(subset=["Close"])
+              b = [(int(x.timestamp()) + 300, float(c)) for x, c in zip(h.index, h["Close"])]   # fin de cada vela de 5 min
+              return b, (t.history_metadata or {}).get("currency")
+
+          def en(b, ts):   # precio de una serie en el momento ts (o el anterior más cercano)
+              previo = None
+              for t, c in b:
+                  if t > ts:
+                      break
+                  previo = c
+              return previo if previo is not None else (b[0][1] if b else None)
+
+          def cierre_anterior(sym):
+              d = yf.Ticker(sym).history(period="10d", interval="1d").dropna(subset=["Close"])
+              return round(float(d["Close"].iloc[-2]), 4) if len(d) >= 2 else None
+
+          ruta = pathlib.Path("data/precios.json")
+          viejo = json.loads(ruta.read_text()) if ruta.exists() else {}
+          q = dict(viejo.get("q", {}))
+          try:
+              spy, _ = barras("SPY")
+              fx, _ = barras("EURUSD=X")
+          except Exception as e:
+              print("SPY/EURUSD falló:", e)
+              spy, fx = [], []
+          for app_sym, opciones in EUROPA.items():
+              for ysym in opciones:
+                  try:
+                      b, moneda = barras(ysym)
+                      if not b:
+                          continue
+                      t, precio = b[-1]
+                      q[app_sym] = {"y": ysym, "price": round(precio, 4), "cur": moneda or "EUR", "t": t,
+                                    "prev": cierre_anterior(ysym), "spy": en(spy, t), "eurusd": en(fx, t)}
+                      break
+                  except Exception as e:
+                      print(ysym, "falló:", e)
+          if q and q != viejo.get("q"):
+              ruta.parent.mkdir(exist_ok=True)
+              ruta.write_text(json.dumps({"v": 1, "fetched_utc": int(time.time()), "q": q}, indent=1))
+              print("Actualizado:", q)
+          else:
+              print("Sin cambios")
+      - name: Guardar en el repositorio
+        run: |
+          [ -f data/precios.json ] || exit 0
+          git config user.name "precios-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/precios.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Precios Europa"
+          git push
