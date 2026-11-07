@@ -1,6 +1,8 @@
 name: Precios Europa
 # Cada 15 minutos (días laborables, durante la sesión de Xetra) pide a Yahoo el precio de los ETFs europeos
-# y lo guarda en data/precios.json, que la app lee sola. También se puede lanzar a mano desde Actions.
+# y lo guarda en data/precios.json, que la app lee sola. Una vez al día añade el histórico del S&P 500 y del euro
+# (para «Tú frente al S&P 500») y la composición de los índices (para «Sectores» y «Exposición real»).
+# También se puede lanzar a mano desde la pestaña Actions.
 on:
   schedule:
     - cron: "4,19,34,49 6-17 * * 1-5"
@@ -11,7 +13,7 @@ concurrency: precios
 jobs:
   precios:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,8 +26,14 @@ jobs:
           import json, time, pathlib
           import yfinance as yf
 
-          # Símbolo en la app -> símbolos de Yahoo a probar en orden (Xetra en euros y, si falla, Milán)
-          EUROPA = {"VUAA": ["VUAA.DE", "VUAA.MI"]}
+          # Símbolo en la app -> símbolos de Yahoo a probar en orden (Xetra en euros; si falla, otra bolsa)
+          EUROPA = {
+              "VUAA": ["VUAA.DE", "VUAA.MI"], "VUSA": ["VUSA.DE", "VUSA.AS"], "SXR8": ["SXR8.DE"],
+              "EUNL": ["EUNL.DE"], "XDWD": ["XDWD.DE"], "VWCE": ["VWCE.DE"], "VGWL": ["VGWL.DE"],
+              "EQQQ": ["EQQQ.DE"], "SXRV": ["SXRV.DE"], "QDVE": ["QDVE.DE"], "IS3N": ["IS3N.DE"], "4GLD": ["4GLD.DE"],
+          }
+          INDICES = ["SPY", "QQQ", "URTH", "VT", "XLK", "EEM"]   # composición que usa la app para mirar dentro de tus ETFs
+          DIA = 20 * 3600
 
           def barras(sym):
               t = yf.Ticker(sym)
@@ -41,12 +49,15 @@ jobs:
                   previo = c
               return previo if previo is not None else (b[0][1] if b else None)
 
-          def cierre_anterior(sym):
-              d = yf.Ticker(sym).history(period="10d", interval="1d").dropna(subset=["Close"])
-              return round(float(d["Close"].iloc[-2]), 4) if len(d) >= 2 else None
+          def cierre_anterior(b):   # último precio de la sesión anterior a la del último dato
+              dia = time.gmtime(b[-1][0] - 300)[:3]
+              ant = [c for t, c in b if time.gmtime(t - 300)[:3] < dia]
+              return round(ant[-1], 4) if ant else None
 
-          ruta = pathlib.Path("data/precios.json")
+          ruta = pathlib.Path("data/precios.json")          # precios: pequeño, la app lo lee cada pocos minutos
+          rutaH = pathlib.Path("data/historico.json")       # histórico y composición: una vez al día
           viejo = json.loads(ruta.read_text()) if ruta.exists() else {}
+          viejoH = json.loads(rutaH.read_text()) if rutaH.exists() else {}
           q = dict(viejo.get("q", {}))
           try:
               spy, _ = barras("SPY")
@@ -62,22 +73,58 @@ jobs:
                           continue
                       t, precio = b[-1]
                       q[app_sym] = {"y": ysym, "price": round(precio, 4), "cur": moneda or "EUR", "t": t,
-                                    "prev": cierre_anterior(ysym), "spy": en(spy, t), "eurusd": en(fx, t)}
+                                    "prev": cierre_anterior(b), "spy": en(spy, t), "eurusd": en(fx, t)}
                       break
                   except Exception as e:
                       print(ysym, "falló:", e)
+
+          ahora = int(time.time())
+          hist = viejoH.get("hist") or {}
+          if ahora - int(hist.get("t", 0)) > DIA:
+              nuevo = {"t": ahora}
+              for clave, ysym in [("SPY", "SPY"), ("EURUSD", "EURUSD=X")]:
+                  try:
+                      h = yf.Ticker(ysym).history(period="10y", interval="1d").dropna(subset=["Close"])
+                      nuevo[clave] = {"d": [x.strftime("%Y-%m-%d") for x in h.index], "c": [round(float(c), 4) for c in h["Close"]]}
+                  except Exception as e:
+                      print(ysym, "histórico falló:", e)
+                      if clave in hist:
+                          nuevo[clave] = hist[clave]
+              hist = nuevo
+
+          fondos = viejoH.get("fondos") or {}
+          if ahora - int(fondos.get("t", 0)) > DIA:
+              nuevo = {"t": ahora}
+              for ix in INDICES:
+                  try:
+                      fd = yf.Ticker(ix).funds_data
+                      top = fd.top_holdings
+                      lista = []
+                      for sym, fila in top.iterrows():
+                          lista.append([str(sym), str(fila.get("Name", sym)), round(float(fila.get("Holding Percent", 0)), 5)])
+                      sec = {k: round(float(v), 5) for k, v in (fd.sector_weightings or {}).items() if v}
+                      nuevo[ix] = {"top": lista, "sec": sec}
+                  except Exception as e:
+                      print(ix, "composición falló:", e)
+                      if ix in fondos:
+                          nuevo[ix] = fondos[ix]
+              fondos = nuevo
+
+          ruta.parent.mkdir(exist_ok=True)
           if q and q != viejo.get("q"):
-              ruta.parent.mkdir(exist_ok=True)
-              ruta.write_text(json.dumps({"v": 1, "fetched_utc": int(time.time()), "q": q}, indent=1))
-              print("Actualizado:", q)
+              ruta.write_text(json.dumps({"v": 2, "fetched_utc": ahora, "q": q}, separators=(",", ":"), ensure_ascii=False))
+              print("Precios actualizados:", sorted(q))
           else:
-              print("Sin cambios")
+              print("Precios sin cambios")
+          if hist != viejoH.get("hist") or fondos != viejoH.get("fondos"):
+              rutaH.write_text(json.dumps({"v": 1, "fetched_utc": ahora, "hist": hist, "fondos": fondos}, separators=(",", ":"), ensure_ascii=False))
+              print("Histórico:", [k for k in hist if k != "t"], "| índices:", [k for k in fondos if k != "t"])
       - name: Guardar en el repositorio
         run: |
-          [ -f data/precios.json ] || exit 0
+          [ -d data ] || exit 0
           git config user.name "precios-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/precios.json
+          git add data/
           git diff --cached --quiet && exit 0
           git commit -m "Precios Europa"
           git push
