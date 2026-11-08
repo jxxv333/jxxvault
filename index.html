@@ -696,7 +696,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
 
   /* ---------- state ---------- */
   var state = {q:{spx:0,gold:0,btc:0,silver:0,fiat:0,dep:0}, fiatCur:"EUR", cur:"EUR", income:[], snaps:{}, days:{}, tab:"cartera",
-               pos:[], fh:"", cost:{}, tx:[], imp:null, priv:false, pview:"total", dview:"cls", range:"30", gastos:[], gRules:{}, gImp:null, gCats:[], aOrder:[]};
+               pos:[], fh:"", cost:{}, tx:[], imp:null, priv:false, pview:"total", dview:"cls", range:"30", gastos:[], gRules:{}, gImp:null, gCats:[], aOrder:[], banks:[]};
   // posiciones: {id, sym, kind:"etf"|"stock", q, name, avg (precio medio en su moneda), ccy, cEur (coste total en € con el cambio de cada compra), logo, ind, ctry, meta}
   function cleanPos(list){ return (Array.isArray(list)?list:[]).filter(function(p){return p&&isSym(p.sym)&&isFinite(p.q)&&p.q>0})
     .map(function(p){
@@ -710,6 +710,16 @@ body.locked .wrap,body.locked .tabbar{display:none}
     .map(function(t){ var o={d:t.d,sym:t.sym,k:t.k,q:+t.q,amt:+t.amt,ccy:/^[A-Z]{3}$/.test(t.ccy)?t.ccy:"USD"}; if(+t.px>0) o.px=+t.px; if(+t.eur>0) o.eur=+t.eur; return o; }) }
   function cleanIncome(list){ return (Array.isArray(list)?list:[]).filter(function(e){return e&&isYM(e.month)&&isFinite(e.amount)&&e.amount>=0&&isCur(e.cur)})
     .map(function(e){return {id:String(e.id||uid()),month:e.month,concept:String(e.concept||"Ingreso").slice(0,40),amount:+e.amount,cur:e.cur}}) }
+  // efectivo repartido en bancos o cuentas: {id, name, amount, cur}. state.q.fiat guarda la suma (compatibilidad con copias antiguas)
+  function cleanBanks(list){ return (Array.isArray(list)?list:[]).filter(function(b){return b&&isFinite(b.amount)&&+b.amount>=0&&isCur(b.cur)})
+    .slice(0,50).map(function(b){return {id:String(b.id||uid()).slice(0,40),name:str(b.name,40).trim()||"Cuenta",amount:Math.round(+b.amount*100)/100,cur:b.cur}}) }
+  function fiatIn(cur,r){ var t=0; state.banks.forEach(function(b){ t+=b.cur===cur?b.amount:(cur==="EUR"?b.amount/r:b.amount*r); }); return t; }
+  function syncFiat(){
+    var r=(market&&market.rate)||1.15;
+    state.fiatCur=state.banks.length&&state.banks.every(function(b){return b.cur==="USD"})?"USD":"EUR";
+    state.q.fiat=Math.round(fiatIn(state.fiatCur,r)*100)/100;
+  }
+  function fiatVal(){ var t=0; for(var i=0;i<state.banks.length;i++){ var v=conv(state.banks[i].amount,state.banks[i].cur); if(v==null) return null; t+=v; } return t; }
   function cleanSnaps(o,test){ test=test||isYM; var out={}; if(o&&typeof o==="object") Object.keys(o).forEach(function(k){ var s=o[k];
     if(test(k)&&s&&isFinite(s.rate)&&s.rate>0&&s.v&&typeof s.v==="object"){ var v={}; ELEMENTS.forEach(function(e){ v[e.key]=isFinite(s.v[e.key])?+s.v[e.key]:0 });
       var r={at:+s.at||0,rate:+s.rate,v:v};
@@ -726,6 +736,8 @@ body.locked .wrap,body.locked .tabbar{display:none}
       saved.fiat.forEach(function(d){ var a=+d.amount||0; t0+=d.cur===c0?a:(c0==="EUR"?a/r0:a*r0); });
       state.q.fiat=Math.round(t0*100)/100; state.fiatCur=c0;
     }
+    state.banks=cleanBanks(saved.banks);
+    if(!state.banks.length&&state.q.fiat>0) state.banks=[{id:uid(),name:"Mi cuenta",amount:state.q.fiat,cur:state.fiatCur}];   // saldo único de antes → primera cuenta
     state.income=cleanIncome(saved.income); state.snaps=cleanSnaps(saved.snaps); state.days=cleanSnaps(saved.days,isDay);
     if(typeof saved.fh==="string") state.fh=saved.fh.trim().slice(0,80);
     if(Array.isArray(saved.pos)) state.pos=cleanPos(saved.pos);
@@ -746,7 +758,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
   // activos en el orden que ha elegido la persona; los que no estén en su orden (nuevos) van al final
   function orderedAssets(){ var o=state.aOrder||[];
     return ASSETS.slice().sort(function(a,b){ var i=o.indexOf(a.key), j=o.indexOf(b.key); return (i<0?99+ASSETS.indexOf(a):i)-(j<0?99+ASSETS.indexOf(b):j); }); }
-  function stateData(){ return {q:state.q,fiatCur:state.fiatCur,cur:state.cur,income:state.income,snaps:state.snaps,days:state.days,tab:state.tab,
+  function stateData(){ syncFiat(); return {banks:state.banks,q:state.q,fiatCur:state.fiatCur,cur:state.cur,income:state.income,snaps:state.snaps,days:state.days,tab:state.tab,
     pos:state.pos,fh:state.fh,cost:state.cost,tx:state.tx,imp:state.imp,priv:state.priv,pview:state.pview,dview:state.dview,range:state.range,
     gastos:state.gastos,gRules:state.gRules,gImp:state.gImp,gCats:state.gCats,aOrder:state.aOrder}; }
   function save(){
@@ -1083,7 +1095,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
       var pu=coinUSD(k), c=market&&market.by[a.id], pd=pu==null?null:conv(pu,"USD"), val=pd==null?null:pd*q, dp=c&&typeof c.pct==="number"?c.pct:null;
       add({type:"coin",key:k,name:a.name,cls:k,price:pd,val:val,cost:assetCost(k),dp:dp,dch:val!=null&&dp!=null?val-val/(1+dp/100):null});
     });
-    if(state.q.fiat>0) add({type:"fiat",key:"fiat",name:"Efectivo",cls:"fiat",val:conv(state.q.fiat,state.fiatCur),cost:null,dp:null,dch:null});
+    if(state.banks.some(function(x){return x.amount>0})) add({type:"fiat",key:"fiat",name:"Efectivo",cls:"fiat",val:fiatVal(),cost:null,dp:null,dch:null});
     if(state.q.dep>0) add({type:"fiat",key:"dep",name:"Fianza alquiler",cls:"dep",val:conv(state.q.dep,"EUR"),cost:null,dp:null,dch:null});
     return {items:items,tot:tot,chg:chg,gain:gain,cost:cost,missCost:missCost,miss:miss,eq:eq,priced:priced};
   }
@@ -1131,13 +1143,20 @@ body.locked .wrap,body.locked .tabbar{display:none}
             '<svg class="spark" viewBox="0 0 60 28" aria-hidden="true"></svg>'+
             '<span class="val"><span class="v">—</span><span class="q"></span><span class="pill flat">—</span></span></button>';
         if(a.icon) li.querySelector(".mark").innerHTML='<svg aria-hidden="true"><use href="#'+a.icon+'"/></svg>'; else li.querySelector(".mark").textContent=a.sym;
-        li.querySelector(".row").addEventListener("click",function(){ if(a.key==="fiat") openFiat(); else if(a.key==="dep") openDep(); else openCoin(a.key); });
+        if(a.key==="fiat"){
+          var rb=li.querySelector(".row"); rb.setAttribute("aria-expanded","false"); rb.setAttribute("aria-controls","f-fiat");
+          li.insertAdjacentHTML("beforeend",'<div class="panel" id="f-fiat" hidden><ul class="subs" aria-label="Bancos y cuentas"></ul>'+
+            '<div class="pbtns"><button type="button" class="add" data-addbank>+ Añadir banco o cuenta</button></div>'+
+            '<div class="pfoot"><p>El total de Efectivo es la suma de todos tus bancos. No cuenta como ganancia ni pérdida.</p></div></div>');
+          li.querySelector("[data-addbank]").addEventListener("click",function(){ openBank(null); });
+        }
+        li.querySelector(".row").addEventListener("click",function(){ if(a.key==="fiat") toggleFiat(); else if(a.key==="dep") openDep(); else openCoin(a.key); });
       }
       li.querySelector(".name").textContent=a.name;
       ul.appendChild(li);
     });
     wireReorder(ul,{sel:":scope>li",key:function(el){return el.id.slice(2)},
-      onStart:function(){ if(openKey==="spx") togglePanel(); },
+      onStart:function(){ if(openKey==="spx") togglePanel(); if(fiatOpen) toggleFiat(); },
       onOrder:function(keys){ state.aOrder=keys; save(); }});
   }
   function togglePanel(){
@@ -1146,6 +1165,29 @@ body.locked .wrap,body.locked .tabbar{display:none}
     if(open){ renderPanel(book()); loadStocks(); mountChart($("bchart"),basketSeries,{color:"--c-stock",title:"Evolución del valor de tus acciones y ETFs"}); }
   }
   function closeEdit(){ if(openKey==="spx") togglePanel(); }
+  var fiatOpen=false;
+  function toggleFiat(){
+    fiatOpen=!fiatOpen; $("f-fiat").hidden=!fiatOpen; $("a-fiat").querySelector(".row").setAttribute("aria-expanded",String(fiatOpen));
+    if(fiatOpen) renderFiatPanel();
+  }
+  function bankInitials(n){ var w=String(n||"?").trim().split(/\s+/).filter(Boolean); return ((w[0]||"?").charAt(0)+(w.length>1?w[1].charAt(0):(w[0]||"").charAt(1))).toUpperCase(); }
+  function renderFiatPanel(){
+    var li=$("a-fiat"); if(!li) return;
+    var ul=li.querySelector(".subs"), tot=fiatVal(); ul.textContent="";
+    if(!state.banks.length){ var e0=document.createElement("li"); e0.className="empty";
+      e0.textContent="Añade cada banco o cuenta donde tienes dinero (por ejemplo Santander, Revolut o la hucha) y aquí se suman todos."; ul.appendChild(e0); }
+    state.banks.forEach(function(bk){
+      var el=document.createElement("li"), v=conv(bk.amount,bk.cur);
+      el.innerHTML='<button type="button" class="srow"><span class="logo" style="--c:var(--fiat)"></span><span class="info"><span class="name"></span><span class="sub"><span></span></span></span><span class="val"><span class="v"></span><span class="q"></span></span></button>';
+      el.querySelector(".logo").textContent=bankInitials(bk.name);
+      el.querySelector(".name").textContent=bk.name;
+      el.querySelector(".sub span").textContent=(bk.cur==="EUR"?"En euros":"En dólares")+(tot>0&&v!=null?" · "+num(v/tot*100,1)+" % del efectivo":"");
+      el.querySelector(".v").textContent=money(v,2);
+      el.querySelector(".q").textContent=bk.cur!==state.cur?money(bk.amount,2,bk.cur):"";
+      el.querySelector(".srow").addEventListener("click",function(){ openBank(bk); });
+      ul.appendChild(el);
+    });
+  }
 
   function gainSpan(g,gp,small,short){
     if(g==null) return "";
@@ -1224,12 +1266,13 @@ body.locked .wrap,body.locked .tabbar{display:none}
       if(q>0){ qEl.textContent=qty(q,a.dec)+" "+a.unit; qEl.className="q"; } else { qEl.textContent="Toca para añadir"; qEl.className="q hint"; }
     });
     // efectivo: saldo manual, sin precio ni cambio de 24 h
-    var fl=$("a-fiat"), fq=state.q.fiat||0, fv=conv(fq,state.fiatCur);
-    fl.querySelector(".mark").textContent=state.fiatCur==="EUR"?"€":"$";
-    fl.querySelector(".sub").textContent=state.fiatCur==="EUR"?"Saldo en euros":"Saldo en dólares";
+    var fl=$("a-fiat"), nb=state.banks.length, fv=fiatVal(), allUsd=nb&&state.banks.every(function(x){return x.cur==="USD"});
+    fl.querySelector(".mark").textContent=allUsd?"$":"€";
+    fl.querySelector(".sub").textContent=nb?nb+(nb===1?" banco o cuenta":" bancos o cuentas"):"Saldo en tus bancos";
     fl.querySelector(".v").textContent=money(fv,2); fl.querySelector(".pill").hidden=true; fl.querySelector(".spark").innerHTML="";
     var fqEl=fl.querySelector(".q");
-    if(fq>0){ fqEl.className="q"; fqEl.textContent=state.fiatCur!==state.cur?money(fq,2,state.fiatCur):""; } else { fqEl.className="q hint"; fqEl.textContent="Toca para añadir"; }
+    if(nb){ fqEl.className="q"; fqEl.textContent=""; } else { fqEl.className="q hint"; fqEl.textContent="Toca para añadir"; }
+    if(fiatOpen) renderFiatPanel();
     fl.querySelector(".src").textContent="Lo pones tú";
     // fianza del alquiler: importe fijo en euros, sin precio ni cambio
     var dl=$("a-dep"), dq=state.q.dep||0;
@@ -1627,13 +1670,23 @@ body.locked .wrap,body.locked .tabbar{display:none}
     mountChart(f.querySelector("#cchart"),function(r){return coinSeries(k,r)},{color:a.c,title:"Evolución del precio de "+a.name,
       fmt:function(v){return money(v,a.grams?2:(v>=1000?0:2))+(a.grams?" /g":"")}});
   }
-  function openFiat(){
-    var f=openSheet({title:"Efectivo",body:'<p class="muted">Saldo en cuentas y depósitos. No cuenta como ganancia ni pérdida.</p>'+
-      '<div class="fl"><label for="f-q">Saldo</label><div class="inline"><div class="field"><input id="f-q" inputmode="decimal" autocomplete="off" placeholder="0"></div>'+curSeg(state.fiatCur)+'</div></div>',
-      onSave:function(f){ var n=parseNum(f.querySelector("#f-q").value); if(n===null) n=0;
-        if(!isFinite(n)||n<0) return "Escribe un número igual o mayor que 0, por ejemplo 2.500.";
-        state.q.fiat=Math.round(n*100)/100; state.fiatCur=f.querySelector(".seg[data-cur]").dataset.cur; save(); }});
-    f.querySelector("#f-q").value=state.q.fiat?fmtIn(state.q.fiat,2):"";
+  function openBank(bk){
+    var isNew=!bk, cur=bk?bk.cur:"EUR";
+    var f=openSheet({title:isNew?"Añadir banco o cuenta":bk.name,
+      body:'<p class="muted">El saldo de este banco se suma al total de Efectivo. No cuenta como ganancia ni pérdida.</p>'+
+        '<div class="fl"><label for="b-n">Nombre del banco o cuenta</label><div class="field"><input type="text" id="b-n" maxlength="40" autocomplete="off" placeholder="Por ejemplo: Santander, Revolut, hucha"></div></div>'+
+        '<div class="fl"><label for="b-q">Saldo</label><div class="inline"><div class="field"><input id="b-q" inputmode="decimal" autocomplete="off" placeholder="0"></div>'+curSeg(cur)+'</div></div>',
+      saveLabel:isNew?"Añadir":"Guardar",
+      onSave:function(f){
+        var name=f.querySelector("#b-n").value.trim().slice(0,40), n=parseNum(f.querySelector("#b-q").value);
+        if(!name) return "Ponle un nombre, por ejemplo el del banco.";
+        if(n===null) n=0; if(!isFinite(n)||n<0) return "Escribe un número igual o mayor que 0, por ejemplo 2.500.";
+        var o=bk||{id:uid()}; o.name=name; o.amount=Math.round(n*100)/100; o.cur=f.querySelector(".seg[data-cur]").dataset.cur;
+        if(isNew) state.banks.push(o);
+        save(); },
+      onDelete:isNew?null:function(){ state.banks=state.banks.filter(function(x){return x!==bk}); save(); },
+      delAsk:bk?"¿Quitar "+bk.name+" del efectivo?":""});
+    f.querySelector("#b-n").value=bk?bk.name:""; f.querySelector("#b-q").value=bk&&bk.amount?fmtIn(bk.amount,2):"";
   }
   function openDep(){
     var f=openSheet({title:"Fianza alquiler",body:'<p class="muted">El depósito que entregaste al alquilar el piso. Cuenta en tu patrimonio como dinero tuyo que te devolverán, sin ganancia ni pérdida.</p>'+
@@ -2569,7 +2622,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
     v.spx=Math.round(sp*100)/100;
     for(var i=0;i<COINS.length;i++){ var a=COINS[i], pu=coinUSD(a.key), q=state.q[a.key]||0; if(pu==null) return;
       v[a.key]=Math.round(pu*q*100)/100; if(q>0){ h["_"+a.key]=[q,Math.round(pu*1e4)/1e4]; var c=state.cost[a.key]; if(c) inv+=c.cur==="USD"?c.v:c.v*r; else invOk=false; } }
-    var f=state.q.fiat||0; v.fiat=Math.round((state.fiatCur==="USD"?f:f*r)*100)/100; if(v.fiat>0){ h._fiat=[v.fiat,1]; inv+=v.fiat; }
+    v.fiat=Math.round(fiatIn("USD",r)*100)/100; if(v.fiat>0){ h._fiat=[v.fiat,1]; inv+=v.fiat; }
     v.dep=Math.round((state.q.dep||0)*r*100)/100; if(v.dep>0){ h._dep=[v.dep,1]; inv+=v.dep; }
     var now=Date.now(), k=ym(), d=dayKey(now), rec={at:now,rate:r,v:v,h:h}, spy=spyPrice();
     if(spy) rec.spy=Math.round(spy*100)/100; if(invOk&&inv>0) rec.inv=Math.round(inv*100)/100;
@@ -2657,7 +2710,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
       var j=JSON.parse(txt), d=j&&(j.app==="jxxvault"||j.app==="vaultjxxv"||j.app==="mi-cartera")?j.data:null;
       if(!d) throw new Error("no");
       if(!confirm("Esto sustituirá los datos de este móvil por los de la copia. ¿Continuar?")) return;
-      state.q={spx:0,gold:0,btc:0,silver:0,fiat:0,dep:0}; state.fiatCur="EUR"; state.aOrder=[]; state.days={}; state.pos=[]; state.tx=[]; state.cost={}; state.imp=null; state.gastos=[]; state.gRules={}; state.gImp=null; state.gCats=[];
+      state.q={spx:0,gold:0,btc:0,silver:0,fiat:0,dep:0}; state.fiatCur="EUR"; state.aOrder=[]; state.days={}; state.pos=[]; state.tx=[]; state.cost={}; state.imp=null; state.gastos=[]; state.gRules={}; state.gImp=null; state.gCats=[]; state.banks=[];
       stocks={}; metaTried={}; applySaved(d); save(); lastVals={}; render(); loadStocks();
       backupMsg("Copia importada: "+state.pos.length+" acciones y ETFs, "+state.income.length+" ingresos, "+Object.keys(state.snaps).length+" meses y "+Object.keys(state.days).length+" días con foto.");
     }).catch(function(){ backupMsg("Ese archivo no es una copia de Jxxvault."); });
