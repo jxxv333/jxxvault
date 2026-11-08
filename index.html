@@ -22,7 +22,7 @@
   --bg:#F3F5F8; --surface:#FFFFFF; --raise:#F8F9FB; --ink:#0E121A; --muted:#5D6777; --line:#DDE2E9; --soft:#ECEFF3;
   --brass:#8A6510; --brass-fill:#E3BC4D; --on-brass:#0E121A; --chart:#B98D18;
   --up:#0F7D57; --down:#CC3443; --warn:#946000;
-  --c-stock:#3E5FD6; --c-etf:#7A4ED6; --au:#B08A12; --ag:#6C7A8A; --btc:#C9640C; --fiat:#0E8A7E;
+  --c-stock:#3E5FD6; --c-etf:#7A4ED6; --au:#B08A12; --ag:#6C7A8A; --btc:#C9640C; --fiat:#0E8A7E; --dep:#B4407F;
   --sans:"Plex",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --serif:"Ledger",Georgia,"Times New Roman",serif;
   --r-card:18px; --r-ctl:11px;
@@ -32,7 +32,7 @@
   --bg:#0E121A; --surface:#151B26; --raise:#1A2130; --ink:#EEF1F6; --muted:#8E99AB; --line:#252E3F; --soft:#1F2736;
   --brass:#E3BC4D; --brass-fill:#E3BC4D; --on-brass:#0E121A; --chart:#E3BC4D;
   --up:#3BC48C; --down:#FF6B78; --warn:#E8C25C;
-  --c-stock:#7C9BF2; --c-etf:#B48CF2; --au:#E3BC4D; --ag:#B7C2CC; --btc:#F39B3A; --fiat:#3CC7B4;
+  --c-stock:#7C9BF2; --c-etf:#B48CF2; --au:#E3BC4D; --ag:#B7C2CC; --btc:#F39B3A; --fiat:#3CC7B4; --dep:#E886BE;
   color-scheme:dark;
 }}
 *{box-sizing:border-box}
@@ -83,6 +83,12 @@ h3{margin:0;font-size:15px;font-weight:600}
 .ranges{display:flex;gap:2px;margin-top:6px}
 .ranges button{flex:1;border:0;background:transparent;border-radius:9px;height:32px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
 .ranges button[aria-pressed="true"]{background:var(--soft);color:var(--brass)}
+.cload{min-height:140px;display:grid;place-items:center;text-align:center;font-size:13px;color:var(--muted);padding:0 16px}
+.cnote{font-size:11.5px;color:var(--muted);margin:6px 0 0;line-height:1.4}
+.cnote:empty{display:none}
+.bchart{padding:2px 4px 6px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.bchart .plabel{margin-top:4px}
+.cchart .plabel{margin-top:0}
 
 .alloc{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--soft);gap:2px}
 .alloc span{display:block;height:100%}
@@ -112,6 +118,10 @@ h3{margin:0;font-size:15px;font-weight:600}
 .name{font-weight:600;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sub{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;line-height:1.35;min-width:0}
 .sub>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub>span.src{white-space:normal}
+.info .src{font-size:11.5px;color:var(--muted);opacity:.8;white-space:normal;line-height:1.3;margin-top:1px}
+.info .src:empty{display:none}
+.srcline{font-size:12px;color:var(--muted);margin:-4px 0 0}
 .spark{width:50px;height:26px;display:block}
 .val{display:flex;flex-direction:column;align-items:flex-end;text-align:right;min-width:0;gap:3px}
 .v{font-variant-numeric:tabular-nums;font-weight:600;font-size:15px;border-radius:4px;padding:0 3px;margin-right:-3px;transition:background-color .8s ease;white-space:nowrap}
@@ -290,6 +300,10 @@ dialog.sheet[open]{animation:rise .22s ease-out}
 .gpick button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .gpick .gnew{justify-content:center;border-style:dashed;color:var(--brass)}
 .gpick [data-c]{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#assets{position:relative}
+#assets .row{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#assets.reordering>li:not(.dragging){opacity:.7}
+#assets>li.dragging{position:relative;z-index:5;pointer-events:none;background:var(--raise);box-shadow:0 12px 28px rgba(0,0,0,.4);border-radius:14px;outline:1.5px solid var(--brass)}
 .gpick.reordering [data-c]:not(.dragging){opacity:.75}
 .gpick [data-c].dragging{position:relative;z-index:5;pointer-events:none;opacity:1;background:var(--raise);border-color:var(--brass);box-shadow:0 10px 24px rgba(0,0,0,.45)}
 .gnewrow{margin-top:-2px}
@@ -403,6 +417,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
     <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></g></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></g></symbol>
     <symbol id="i-eyeoff" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.1 3.9M6.5 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.9 0 3.5-.6 4.9-1.4"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></g></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6 8 6"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></g></symbol>
     <symbol id="i-stocks" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l5-5 4 3 7-8"/><path d="M15 7h5v5"/></g></symbol>
   </defs>
 </svg>
@@ -630,13 +645,14 @@ body.locked .wrap,body.locked .tabbar{display:none}
     {key:"gold",   id:"tether-gold",    name:"Oro",     sym:"Au", c:"--au",  unit:"g",   unitLabel:"gramos",  grams:true, dec:2},
     {key:"btc",    id:"bitcoin",        name:"Bitcoin", sym:"₿",  c:"--btc", unit:"BTC", unitLabel:"bitcoin", per:"BTC", dec:8},
     {key:"silver", id:"kinesis-silver", name:"Plata",   sym:"Ag", c:"--ag",  unit:"g",   unitLabel:"gramos",  grams:true, dec:2},
-    {key:"fiat",   manual:true,         name:"Efectivo",sym:"€",  c:"--fiat", dec:2}
+    {key:"fiat",   manual:true,         name:"Efectivo",sym:"€",  c:"--fiat", dec:2},
+    {key:"dep",    manual:true,         name:"Fianza alquiler", icon:"i-home", c:"--dep", dec:2}   // depósito del alquiler: importe fijo en euros
   ];
   var ASSET = {}; ASSETS.forEach(function(a){ ASSET[a.key]=a; });
   var COINS = ASSETS.filter(function(a){return a.id});
   var ELEMENTS = ASSETS.map(function(a){return {key:a.key,name:a.name,c:a.c}});
   var CLASSES = [{k:"stock",name:"Acciones",c:"--c-stock"},{k:"etf",name:"ETFs",c:"--c-etf"},{k:"gold",name:"Oro",c:"--au"},
-                 {k:"silver",name:"Plata",c:"--ag"},{k:"btc",name:"Bitcoin",c:"--btc"},{k:"fiat",name:"Efectivo",c:"--fiat"}];
+                 {k:"silver",name:"Plata",c:"--ag"},{k:"btc",name:"Bitcoin",c:"--btc"},{k:"fiat",name:"Efectivo",c:"--fiat"},{k:"dep",name:"Fianza",c:"--dep"}];
   var MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   var LS = "micartera.v1", LS_MKT = "micartera.mkt.v2";
   var TABS = ["cartera","analisis","gastos","ingresos","evol"];
@@ -679,8 +695,8 @@ body.locked .wrap,body.locked .tabbar{display:none}
   function nativeCcy(sym){ return EU_CAT[sym]?"EUR":"USD"; }
 
   /* ---------- state ---------- */
-  var state = {q:{spx:0,gold:0,btc:0,silver:0,fiat:0}, fiatCur:"EUR", cur:"EUR", income:[], snaps:{}, days:{}, tab:"cartera",
-               pos:[], fh:"", cost:{}, tx:[], imp:null, priv:false, pview:"total", dview:"cls", range:"30", gastos:[], gRules:{}, gImp:null, gCats:[]};
+  var state = {q:{spx:0,gold:0,btc:0,silver:0,fiat:0,dep:0}, fiatCur:"EUR", cur:"EUR", income:[], snaps:{}, days:{}, tab:"cartera",
+               pos:[], fh:"", cost:{}, tx:[], imp:null, priv:false, pview:"total", dview:"cls", range:"30", gastos:[], gRules:{}, gImp:null, gCats:[], aOrder:[]};
   // posiciones: {id, sym, kind:"etf"|"stock", q, name, avg (precio medio en su moneda), ccy, cEur (coste total en € con el cambio de cada compra), logo, ind, ctry, meta}
   function cleanPos(list){ return (Array.isArray(list)?list:[]).filter(function(p){return p&&isSym(p.sym)&&isFinite(p.q)&&p.q>0})
     .map(function(p){
@@ -724,10 +740,15 @@ body.locked .wrap,body.locked .tabbar{display:none}
     state.gastos=cleanGastos(saved.gastos); state.gRules=cleanGRules(saved.gRules); state.gCats=cleanGCats(saved.gCats);
     if(saved.gImp&&typeof saved.gImp==="object") state.gImp={at:+saved.gImp.at||0,file:str(saved.gImp.file,80),from:isDay(saved.gImp.from)?saved.gImp.from:"",to:isDay(saved.gImp.to)?saved.gImp.to:"",n:+saved.gImp.n||0};
     if(TABS.indexOf(saved.tab)>-1) state.tab=saved.tab;
+    state.aOrder=cleanAOrder(saved.aOrder);
   }
+  function cleanAOrder(a){ var out=[]; (Array.isArray(a)?a:[]).forEach(function(k){ if(ASSET[k]&&out.indexOf(k)<0) out.push(k); }); return out; }
+  // activos en el orden que ha elegido la persona; los que no estén en su orden (nuevos) van al final
+  function orderedAssets(){ var o=state.aOrder||[];
+    return ASSETS.slice().sort(function(a,b){ var i=o.indexOf(a.key), j=o.indexOf(b.key); return (i<0?99+ASSETS.indexOf(a):i)-(j<0?99+ASSETS.indexOf(b):j); }); }
   function stateData(){ return {q:state.q,fiatCur:state.fiatCur,cur:state.cur,income:state.income,snaps:state.snaps,days:state.days,tab:state.tab,
     pos:state.pos,fh:state.fh,cost:state.cost,tx:state.tx,imp:state.imp,priv:state.priv,pview:state.pview,dview:state.dview,range:state.range,
-    gastos:state.gastos,gRules:state.gRules,gImp:state.gImp,gCats:state.gCats}; }
+    gastos:state.gastos,gRules:state.gRules,gImp:state.gImp,gCats:state.gCats,aOrder:state.aOrder}; }
   function save(){
     if(!DEK||!REC) return saveQ;
     var text=JSON.stringify(stateData()), dek=DEK, rec=REC;
@@ -758,6 +779,12 @@ body.locked .wrap,body.locked .tabbar{display:none}
   function pct(p,dec){ if(p==null||!isFinite(p)) return "—"; dec=dec==null?2:dec; return (p>0.0005?"+":p<-0.0005?"−":"")+new Intl.NumberFormat("es-ES",{minimumFractionDigits:dec,maximumFractionDigits:dec}).format(Math.abs(p))+" %"}
   function signed(v,dec){return v==null?"—":(v>0?"+":v<0?"−":"")+money(Math.abs(v),dec==null?2:dec)}
   function cls(v){return v>0.005?"up":v<-0.005?"down":""}
+  // hora corta para «de dónde y a qué hora es el precio»: 17:48 · ayer 22:00 · vie 7 nov 22:00
+  function hm(ms){ if(!ms) return ""; var d=new Date(ms), t=d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
+    if(d.toDateString()===new Date().toDateString()) return t;
+    if(d.toDateString()===new Date(Date.now()-86400000).toDateString()) return "ayer "+t;
+    return d.toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"})+" "+t; }
+  var COIN_SRC={gold:"token Tether Gold (XAUT): cada token es 1 onza de oro", silver:"token Kinesis Silver (KAG): cada token es 1 onza de plata", btc:"media de los exchanges"};
   function pillCls(p){return "pill "+(p==null?"flat":p>0.005?"up":p<-0.005?"down":"flat")}
   function clock(t){return new Date(t).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}
   function dayClock(t){var d=new Date(t);return d.toDateString()===new Date().toDateString()?clock(t):d.toLocaleString("es-ES",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
@@ -912,6 +939,15 @@ body.locked .wrap,body.locked .tabbar{display:none}
     if(EU[sym]&&EU[sym].price>0) return euQuote(sym,EU[sym]);
     var s=stocks[sym]; if(s&&s.price>0) return s; if(sym==="SPY") return spxRef(); return null;   // SPY sin clave: precio de referencia de CoinGecko
   }
+  // de dónde sale el precio de una posición y de qué hora es
+  function qSrc(qt){
+    if(!qt) return null;
+    if(qt.eu) return {n:"Yahoo",t:qt.t*1000,txt:"Yahoo · "+hm(qt.t*1000)+(qt.est?" ≈ S&P 500 ahora":""),
+      long:"Yahoo Finance ("+(qt.y||"bolsa europea")+"), precio de las "+hm(qt.t*1000)+(qt.est?". Desde entonces se ajusta con el S&P 500 en directo (≈)":"")};
+    if(qt.proxy) return {n:"CoinGecko",t:market&&market.at,txt:"CoinGecko (ref.) · "+hm(market&&market.at),long:"CoinGecko, precio de referencia del S&P 500 (sin clave de Finnhub)"};
+    var t=qt.t>0?qt.t*1000:qt.at;
+    return {n:"Finnhub",t:t,txt:"Finnhub · "+hm(t),long:"Finnhub, último precio negociado "+(t&&new Date(t).toDateString()===new Date().toDateString()?"a las ":"el ")+hm(t)};
+  }
   function spyPrice(){ var s=stocks.SPY; if(s&&s.price>0) return s.price; var r=spxRef(); if(r) return r.price;
     return HIST.SPY&&HIST.SPY.c.length?HIST.SPY.c[HIST.SPY.c.length-1]:null; }
 
@@ -1005,6 +1041,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
       }).catch(function(e){ fail=fail||e; });
     })).then(function(){
       stkErr=!fail?"":fail.key?"key":fail.busy?"busy":"net"; stkBusy=false; render();
+      if(!spxSpark){ sparkTried=0; loadSpxSpark(); }
     });
   }
 
@@ -1047,6 +1084,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
       add({type:"coin",key:k,name:a.name,cls:k,price:pd,val:val,cost:assetCost(k),dp:dp,dch:val!=null&&dp!=null?val-val/(1+dp/100):null});
     });
     if(state.q.fiat>0) add({type:"fiat",key:"fiat",name:"Efectivo",cls:"fiat",val:conv(state.q.fiat,state.fiatCur),cost:null,dp:null,dch:null});
+    if(state.q.dep>0) add({type:"fiat",key:"dep",name:"Fianza alquiler",cls:"dep",val:conv(state.q.dep,"EUR"),cost:null,dp:null,dch:null});
     return {items:items,tot:tot,chg:chg,gain:gain,cost:cost,missCost:missCost,miss:miss,eq:eq,priced:priced};
   }
 
@@ -1063,14 +1101,16 @@ body.locked .wrap,body.locked .tabbar{display:none}
   /* ---------- filas de la cartera ---------- */
   function buildRows(){
     var ul=$("assets");
-    ASSETS.forEach(function(a){
+    orderedAssets().forEach(function(a){
       var li=document.createElement("li"); li.id="a-"+a.key;
       if(a.group){
         li.innerHTML='<button type="button" class="row" aria-expanded="false" aria-controls="f-spx">'+
             '<span class="mark" style="--c:var('+a.c+')"><svg aria-hidden="true"><use href="#i-stocks"/></svg></span>'+
-            '<span class="info"><span class="name"></span><span class="sub"></span></span><span></span>'+
+            '<span class="info"><span class="name"></span><span class="sub"></span><span class="src"></span></span>'+
+            '<svg class="spark" viewBox="0 0 60 28" aria-hidden="true"></svg>'+
             '<span class="val"><span class="v">—</span><span class="pill flat">—</span></span></button>'+
           '<div class="panel" id="f-spx" hidden>'+
+            '<div class="bchart" id="bchart"></div>'+
             '<div class="ptools"><span class="muted" id="pcount"></span><div class="seg" id="pview" role="group" aria-label="Rentabilidad que se muestra">'+
               '<button type="button" data-v="total">Total</button><button type="button" data-v="day">Hoy</button></div></div>'+
             '<ul class="subs" aria-label="Acciones y ETFs"></ul>'+
@@ -1087,20 +1127,23 @@ body.locked .wrap,body.locked .tabbar{display:none}
       }else{
         li.innerHTML='<button type="button" class="row">'+
             '<span class="mark" style="--c:var('+a.c+')"></span>'+
-            '<span class="info"><span class="name"></span><span class="sub">Cargando…</span></span>'+
+            '<span class="info"><span class="name"></span><span class="sub">Cargando…</span><span class="src"></span></span>'+
             '<svg class="spark" viewBox="0 0 60 28" aria-hidden="true"></svg>'+
             '<span class="val"><span class="v">—</span><span class="q"></span><span class="pill flat">—</span></span></button>';
-        li.querySelector(".mark").textContent=a.sym;
-        li.querySelector(".row").addEventListener("click",function(){ if(a.manual) openFiat(); else openCoin(a.key); });
+        if(a.icon) li.querySelector(".mark").innerHTML='<svg aria-hidden="true"><use href="#'+a.icon+'"/></svg>'; else li.querySelector(".mark").textContent=a.sym;
+        li.querySelector(".row").addEventListener("click",function(){ if(a.key==="fiat") openFiat(); else if(a.key==="dep") openDep(); else openCoin(a.key); });
       }
       li.querySelector(".name").textContent=a.name;
       ul.appendChild(li);
     });
+    wireReorder(ul,{sel:":scope>li",key:function(el){return el.id.slice(2)},
+      onStart:function(){ if(openKey==="spx") togglePanel(); },
+      onOrder:function(keys){ state.aOrder=keys; save(); }});
   }
   function togglePanel(){
     var open=openKey!=="spx", li=$("a-spx");
     openKey=open?"spx":null; $("f-spx").hidden=!open; li.querySelector(".row").setAttribute("aria-expanded",String(open));
-    if(open){ renderPanel(book()); loadStocks(); }
+    if(open){ renderPanel(book()); loadStocks(); mountChart($("bchart"),basketSeries,{color:"--c-stock",title:"Evolución del valor de tus acciones y ETFs"}); }
   }
   function closeEdit(){ if(openKey==="spx") togglePanel(); }
 
@@ -1118,6 +1161,9 @@ body.locked .wrap,body.locked .tabbar{display:none}
     if(n&&miss&&!any){ pill.className="pill warn"; pill.textContent=!state.fh?"Falta la clave":"Cargando…"; }
     else if(any){ var p=val-ch>0?ch/(val-ch)*100:0; pill.className=pillCls(p); pill.textContent=pct(p)+" hoy"; }
     else { pill.className="pill flat"; pill.textContent="—"; }
+    var srcs=[], last=0; b.items.forEach(function(it){ if(it.type!=="pos") return; var s=qSrc(it.qt); if(!s) return; if(srcs.indexOf(s.n)<0) srcs.push(s.n); if(s.t>last) last=s.t; });
+    li.querySelector(".src").textContent=srcs.length?srcs.join(" y ")+" · "+hm(last):"";
+    spark(li.querySelector(".spark"),n?spxSpark:null,"--c-stock");
     if(any){ var prev=lastVals["spx"+state.cur]; if(prev!=null&&Math.abs(prev-val)>0.004&&!state.priv) flash(v,val>prev); lastVals["spx"+state.cur]=val; }
     if(openKey==="spx") renderPanel(b);
   }
@@ -1132,10 +1178,11 @@ body.locked .wrap,body.locked .tabbar{display:none}
       e0.textContent="Busca tus acciones y ETFs por nombre o símbolo, o importa el extracto de Revolut y se rellenan solas con su precio medio."; ul.appendChild(e0); }
     rows.forEach(function(it){
       var p=it.p, qt=it.qt, s=stocks[p.sym], el=document.createElement("li");
-      el.innerHTML='<button type="button" class="srow"><span class="lg"></span><span class="info"><span class="name"></span><span class="sub"><span></span></span></span><span class="val"><span class="v"></span><span class="pill flat"></span></span></button>';
+      el.innerHTML='<button type="button" class="srow"><span class="lg"></span><span class="info"><span class="name"></span><span class="sub"><span></span><span class="src"></span></span></span><span class="val"><span class="v"></span><span class="pill flat"></span></span></button>';
       el.querySelector(".lg").replaceWith(logoNode(p));
       el.querySelector(".name").textContent=p.name||p.sym;
       el.querySelector(".sub span").textContent=qty(p.q,6)+(p.kind==="etf"?" part.":" acc.")+(it.price!=null?" · "+(qt.est?"≈":"")+money(it.price,2):"");
+      var qs=qSrc(qt); el.querySelector(".src").textContent=qs?qs.txt:"";
       el.querySelector(".v").textContent=it.val==null?"—":money(it.val,2);
       var pill=el.querySelector(".pill");
       if(!qt&&s&&s.missing){ pill.className="pill down"; pill.textContent="No encontrado"; }
@@ -1173,6 +1220,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
         if(q>0){ var prev=lastVals[a.key+state.cur]; if(prev!=null&&Math.abs(prev-val)>0.004&&!state.priv) flash(v,val>prev); lastVals[a.key+state.cur]=val; }
         spark(li.querySelector(".spark"),coin.spark,a.c);
       }
+      li.querySelector(".src").textContent=coin?"CoinGecko · "+hm(coin.t||mk.at):"";
       if(q>0){ qEl.textContent=qty(q,a.dec)+" "+a.unit; qEl.className="q"; } else { qEl.textContent="Toca para añadir"; qEl.className="q hint"; }
     });
     // efectivo: saldo manual, sin precio ni cambio de 24 h
@@ -1182,6 +1230,14 @@ body.locked .wrap,body.locked .tabbar{display:none}
     fl.querySelector(".v").textContent=money(fv,2); fl.querySelector(".pill").hidden=true; fl.querySelector(".spark").innerHTML="";
     var fqEl=fl.querySelector(".q");
     if(fq>0){ fqEl.className="q"; fqEl.textContent=state.fiatCur!==state.cur?money(fq,2,state.fiatCur):""; } else { fqEl.className="q hint"; fqEl.textContent="Toca para añadir"; }
+    fl.querySelector(".src").textContent="Lo pones tú";
+    // fianza del alquiler: importe fijo en euros, sin precio ni cambio
+    var dl=$("a-dep"), dq=state.q.dep||0;
+    dl.querySelector(".sub").textContent="Depósito del piso";
+    dl.querySelector(".v").textContent=money(conv(dq,"EUR"),2); dl.querySelector(".pill").hidden=true; dl.querySelector(".spark").innerHTML="";
+    var dqEl=dl.querySelector(".q");
+    if(dq>0){ dqEl.className="q"; dqEl.textContent=state.cur!=="EUR"?money(dq,2,"EUR"):""; } else { dqEl.className="q hint"; dqEl.textContent="Toca para añadir"; }
+    dl.querySelector(".src").textContent="Lo pones tú";
 
     // cabecera
     var anyQ=state.pos.length>0||ASSETS.some(function(a){return state.q[a.key]>0});
@@ -1272,6 +1328,135 @@ body.locked .wrap,body.locked .tabbar{display:none}
   }
   function flash(el,up){el.classList.remove("flash-up","flash-down");void el.offsetWidth;el.classList.add(up?"flash-up":"flash-down");setTimeout(function(){el.classList.remove("flash-up","flash-down")},700)}
 
+  /* ---------- históricos de precios y gráficos de evolución ----------
+     Oro, plata y bitcoin: CoinGecko (hasta 1 año). Acciones y ETFs: los archivos que publica el robot «Históricos»
+     de GitHub en la rama «datos». Es un catálogo amplio, así el repositorio público no revela lo que tienes;
+     la app solo descarga los de tus posiciones. En la APK, stockHist() pedirá estos datos directamente a Yahoo
+     (CLAUDE.md, regla 4). El último punto de cada gráfico es siempre el precio en directo. */
+  var HREPO=(function(){ var m=location.hostname.match(/^([^.]+)\.github\.io$/i), r=location.pathname.split("/")[1]; return m&&r?m[1]+"/"+r:"jxxv333/jxxvault"; })();
+  var hCache={}, chartRange="30", spxSpark=null;
+  var CRANGES=[["1","1D"],["7","1S"],["30","1M"],["90","3M"],["365","1A"]];
+  var CR_TXT={"1":"en el último día","7":"en la última semana","30":"en el último mes","90":"en 3 meses","365":"en el último año"};
+  function cached(key,ttl,fn){ var c=hCache[key]; if(c&&Date.now()-c.at<ttl) return c.p;
+    var p=fn().catch(function(){ delete hCache[key]; return null; }); hCache[key]={at:Date.now(),p:p}; return p; }
+  function stockHist(sym){
+    return cached("s:"+sym,30*60000,function(){
+      return fetch("https://raw.githubusercontent.com/"+HREPO+"/datos/h/"+encodeURIComponent(sym)+".json",{cache:"no-store"})
+        .then(function(r){ if(r.status===404) return null; if(!r.ok) throw new Error("http "+r.status); return r.json(); })
+        .then(function(j){ if(!j) return null; var d=cleanSeries({d:j.d,c:j.c}); if(!d) return null;
+          var o={cur:j.cur==="EUR"?"EUR":"USD",d:d.d,c:d.c,dt:d.d.map(dayMs),at:+j.t*1000||0,ht:[],hc:[]};
+          if(Array.isArray(j.ht)&&Array.isArray(j.hc)&&j.ht.length===j.hc.length)
+            j.ht.forEach(function(t,i){ if(+t>0&&+j.hc[i]>0){ o.ht.push(+t*1000); o.hc.push(+j.hc[i]); } });
+          return o; });
+    });
+  }
+  function coinHist(id,days){
+    return cached("c:"+id+":"+days,days==="1"?5*60000:30*60000,function(){
+      return fetch("https://api.coingecko.com/api/v3/coins/"+encodeURIComponent(id)+"/market_chart?vs_currency=usd&days="+days,{cache:"no-store"})
+        .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
+        .then(function(j){ var t=[],p=[]; (j&&Array.isArray(j.prices)?j.prices:[]).forEach(function(x){ if(Array.isArray(x)&&+x[0]>0&&+x[1]>0){ t.push(+x[0]); p.push(+x[1]); } });
+          return t.length>1?{t:t,p:p}:null; });
+    });
+  }
+  function fxAt(ms){ var v=HIST.EURUSD?histAt(HIST.EURUSD,dayKey(ms)):null; return v>0?v:rate(); }   // dólares por euro ese día
+  function toCur(v,cur,ms){ if(v==null) return null; if(cur===state.cur) return v; var r=fxAt(ms); if(!r) return null; return cur==="USD"?v/r:v*r; }
+  function stepAt(ts,vs,t){ if(!ts.length) return null; if(t<ts[0]) return vs[0]; var lo=0,hi=ts.length-1;   // último valor conocido en t
+    while(lo<hi){ var m=(lo+hi+1)>>1; if(ts[m]<=t) lo=m; else hi=m-1; } return vs[lo]; }
+  // puntos de un histórico de acción en el rango: por horas hasta 1 semana, por días a partir de ahí
+  function histWindow(h,range){
+    var now=Date.now();
+    if((range==="1"||range==="7")&&h.ht.length>1){
+      var from=range==="1"?h.ht[h.ht.length-1]-24*3600000:now-7*86400000;   // 1D: la última sesión, aunque hoy no haya bolsa
+      var ts=[],vs=[]; h.ht.forEach(function(t,i){ if(t>=from){ ts.push(t); vs.push(h.hc[i]); } }); if(ts.length>1) return {t:ts,v:vs,hourly:true};
+    }
+    var f=now-Math.max(Number(range),7)*86400000, ts2=[],vs2=[]; h.dt.forEach(function(t,i){ if(t>=f){ ts2.push(t); vs2.push(h.c[i]); } });
+    return {t:ts2,v:vs2,hourly:false};
+  }
+  function coinSeries(k,range){
+    var a=ASSET[k];
+    return coinHist(a.id,range).then(function(hh){
+      if(!hh) return {err:"CoinGecko no ha devuelto el histórico. Inténtalo en un momento."};
+      var pts=[]; hh.t.forEach(function(t,i){ var v=toCur(hh.p[i]/(a.grams?OZ:1),"USD",t); if(v!=null) pts.push({t:t,v:v}); });
+      var live=coinUSD(k); if(live!=null) pts.push({t:Date.now(),v:conv(live,"USD")});
+      return {pts:pts,hourly:range!=="365"&&range!=="90",note:"Precio de CoinGecko"+(a.grams?" por gramo":"")+". El último punto es el precio en directo."};
+    });
+  }
+  function posSeries(p,range){
+    return stockHist(p.sym).then(function(h){
+      if(!h) return {err:hCache["s:"+p.sym]?"Todavía no hay histórico de "+p.sym+". Lo publica el robot «Históricos» de GitHub; si es una acción poco común, puede no estar en su catálogo.":"No se pudo descargar el histórico. Inténtalo en un momento."};
+      var w=histWindow(h,range), pts=[]; w.t.forEach(function(t,i){ var v=toCur(w.v[i],h.cur,t); if(v!=null) pts.push({t:t,v:v}); });
+      var qt=quoteOf(p.sym); if(qt&&qt.price>0) pts.push({t:Date.now(),v:conv(qt.price,"USD")});
+      return {pts:pts,hourly:w.hourly,note:"Histórico de Yahoo Finance ("+(range==="1"||range==="7"?"por horas":"cierre de cada día")+"), actualizado "+hm(h.at)+". El último punto es el precio actual."};
+    });
+  }
+  // valor de las acciones y ETFs que tienes hoy, con el precio de cada momento
+  function basketSeries(range){
+    var b=book(), its=b.items.filter(function(it){return it.type==="pos"});
+    if(!its.length) return Promise.resolve({err:"Cuando añadas acciones o ETFs verás aquí cómo ha evolucionado su valor."});
+    return Promise.all(its.map(function(it){ return stockHist(it.p.sym); })).then(function(hs){
+      var wins=hs.map(function(h){ return h?histWindow(h,range):null; }), hourly=wins.some(function(w){return w&&w.hourly});
+      if(hourly) wins=hs.map(function(h,i){ var w=wins[i]; return w&&!w.hourly&&h?{t:h.dt,v:h.c,hourly:false}:w; });   // los que no tienen horas, por días
+      var grid=[], miss=[], fixed=0;
+      wins.forEach(function(w,i){ if(w&&w.t.length) w.t.forEach(function(t){ grid.push(t); }); else { miss.push(its[i].p.sym); if(its[i].val!=null) fixed+=its[i].val; } });
+      if(!grid.length) return {err:"Todavía no hay históricos de tus acciones. Los publica el robot «Históricos» de GitHub en su primera ejecución."};
+      var from=hourly?Math.min.apply(null,wins.filter(function(w){return w&&w.hourly}).map(function(w){return w.t[0]})):Date.now()-Number(range)*86400000;
+      grid=grid.filter(function(t){return t>=from}).sort(function(x,y){return x-y}).filter(function(t,i,a){return !i||t!==a[i-1]});
+      var pts=grid.map(function(t){ var v=fixed;
+        wins.forEach(function(w,i){ if(!w||!w.t.length) return; var px=stepAt(w.t,w.v,t), c=toCur(px*its[i].p.q,hs[i].cur,t); if(c!=null) v+=c; });
+        return {t:t,v:v}; });
+      var live=0, ok=true; its.forEach(function(it){ if(it.val!=null) live+=it.val; else ok=false; }); if(ok) pts.push({t:Date.now(),v:live});
+      return {pts:pts,hourly:hourly,note:"Lo que valdrían las acciones y ETFs que tienes hoy, con el precio de cada "+(hourly?"hora":"día")+" (Yahoo Finance). No incluye compras ni ventas pasadas: para eso está la pestaña Evolución."+
+        (miss.length?" Sin histórico: "+miss.join(", ")+"; se cuentan a su valor actual.":"")};
+    });
+  }
+  // minigráfico de la fila «Acciones y ETFs»: la última semana por horas
+  var sparkTried=0;
+  function loadSpxSpark(){
+    if(!state.pos.length||Date.now()-sparkTried<5*60000) return; sparkTried=Date.now();
+    basketSeries("7").then(function(s){ if(!s||!s.pts||s.pts.length<3) return;
+      var arr=thin(s.pts.map(function(p){return p.v})); if(JSON.stringify(arr)!==JSON.stringify(spxSpark)){ spxSpark=arr; renderCartera(); } });
+  }
+  // gráfico con rangos: loader(rango) → Promise({pts:[{t,v}], hourly, note} | {err})
+  function mountChart(box,loader,o){
+    if(!box) return; var seq=0, gid="g"+Math.random().toString(36).slice(2,8);
+    box.innerHTML='<p class="plabel"></p><div class="pchart"><div class="cload">Cargando…</div></div>'+
+      '<div class="ranges" role="group" aria-label="Periodo">'+CRANGES.map(function(r){return '<button type="button" data-r="'+r[0]+'">'+r[1]+'</button>'}).join("")+'</div><p class="cnote"></p>';
+    var lab=box.querySelector(".plabel"), area=box.querySelector(".pchart"), note=box.querySelector(".cnote"), data=null;
+    box.querySelectorAll("[data-r]").forEach(function(b){ b.addEventListener("click",function(ev){ ev.preventDefault(); chartRange=b.dataset.r; go(); }); });
+    function tlabel(t){ var d=new Date(t); return data.hourly?d.toLocaleString("es-ES",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"}); }
+    function label(){ var s=data.pts, a=s[0].v, z=s[s.length-1].v, d=z-a;
+      lab.innerHTML='<b class="'+cls(d)+'">'+esc(signed(d,Math.abs(d)<1000?2:0))+(a>0?" ("+esc(pct(d/a*100,1))+")":"")+'</b> '+CR_TXT[chartRange]; }
+    function go(){
+      var my=++seq; box.querySelectorAll("[data-r]").forEach(function(b){ b.setAttribute("aria-pressed",String(b.dataset.r===chartRange)); });
+      area.innerHTML='<div class="cload">Cargando…</div>'; lab.textContent=""; note.textContent="";
+      loader(chartRange).then(function(r){ if(my!==seq) return; data=r;
+        if(!r||r.err||!r.pts||r.pts.length<2){ area.innerHTML='<div class="cload">'+esc(r&&r.err?r.err:"No hay datos para este periodo.")+'</div>'; return; }
+        draw(); label(); note.textContent=r.note||""; });
+    }
+    function draw(){
+      var s=data.pts, W=340, H=140, t0=s[0].t, t1=s[s.length-1].t, vals=s.map(function(p){return p.v});
+      var mn=Math.min.apply(null,vals), mx=Math.max.apply(null,vals), pad=(mx-mn)*.12||Math.abs(mx)*.02||1; mn-=pad; mx+=pad;
+      function X(t){return 6+(t-t0)/Math.max(t1-t0,1)*(W-16)} function Y(v){return H-6-(v-mn)/(mx-mn)*(H-16)}
+      var d=s.map(function(p,i){return (i?"L":"M")+X(p.t).toFixed(1)+" "+Y(p.v).toFixed(1)}).join(" "), last=s[s.length-1], col="var("+(o.color||"--chart")+")";
+      area.innerHTML='<svg class="pc" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.title||"Evolución del precio")+'">'+
+        '<defs><linearGradient id="'+gid+'" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity=".22"/><stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>'+
+        '<path d="'+d+' L'+X(last.t).toFixed(1)+' '+H+' L'+X(t0).toFixed(1)+' '+H+' Z" fill="url(#'+gid+')"/>'+
+        '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>'+
+        '<circle cx="'+X(last.t).toFixed(1)+'" cy="'+Y(last.v).toFixed(1)+'" r="4" fill="'+col+'"/>'+
+        '<g class="scrub" visibility="hidden"><line y1="0" y2="'+H+'" stroke="var(--muted)" stroke-width="1"/><circle r="4.5" fill="var(--surface)" stroke="'+col+'" stroke-width="2.2"/></g>'+
+        '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="transparent" class="hit"/></svg>';
+      var svg=area.querySelector("svg"), g=svg.querySelector(".scrub"), ln=g.querySelector("line"), dot=g.querySelector("circle"), hit=svg.querySelector(".hit"), tm=0;
+      function at(ev){ var r=svg.getBoundingClientRect(), x=(ev.clientX-r.left)/r.width*W, best=0, bd=1e9;
+        s.forEach(function(p,i){ var dd=Math.abs(X(p.t)-x); if(dd<bd){bd=dd;best=i} });
+        var p=s[best]; g.setAttribute("visibility","visible"); ln.setAttribute("x1",X(p.t)); ln.setAttribute("x2",X(p.t)); dot.setAttribute("cx",X(p.t)); dot.setAttribute("cy",Y(p.v));
+        lab.innerHTML='<b>'+esc(o.fmt?o.fmt(p.v):money(p.v,2))+'</b> · '+esc(best===s.length-1?"ahora":tlabel(p.t)); clearTimeout(tm); }
+      function out(){ g.setAttribute("visibility","hidden"); label(); }
+      hit.addEventListener("pointerdown",at); hit.addEventListener("pointermove",function(ev){ if(ev.pointerType==="mouse"||ev.buttons) at(ev); });
+      hit.addEventListener("pointerleave",out); hit.addEventListener("pointerup",function(ev){ if(ev.pointerType!=="mouse"){ clearTimeout(tm); tm=setTimeout(out,1500); } });
+    }
+    go();
+  }
+
   /* ---------- hoja inferior ---------- */
   var sheet=$("sheet");
   sheet.addEventListener("click",function(e){ if(e.target===sheet) sheet.close(); });
@@ -1312,8 +1497,9 @@ body.locked .wrap,body.locked .tabbar{display:none}
     var b=book(), it=b.items.filter(function(x){return x.type==="pos"&&x.p===p})[0]||{}, qt=it.qt, unit=p.ccy==="EUR"?"€":"$";
     var divs=txDivs().filter(function(t){return t.sym===p.sym}), dv=divs.reduce(function(s,t){return s+(t.disp||0)},0);
     var head='<div class="shead"><span class="lg"></span><div class="info"><span class="name" id="sheetTitle"></span><span class="sub"><span>'+esc(p.sym)+' · '+(p.kind==="etf"?"ETF":"Acción")+(qt&&qt.eu?" · Yahoo":"")+'</span></span></div></div>'+
-      '<div class="price-l"><span class="p">'+(it.price!=null?(qt.est?"≈":"")+esc(money(it.price,2)):"—")+'</span>'+(it.dp!=null?'<span class="'+pillCls(it.dp)+'">'+esc(pct(it.dp))+' hoy</span>':'')+'</div>';
-    var body='<div class="stats">'+statCell("Valor",esc(money(it.val,2)))+statCell("Peso en la cartera",b.tot>0&&it.val!=null?esc(num(it.val/b.tot*100,1))+" %":"—")+
+      '<div class="price-l"><span class="p">'+(it.price!=null?(qt.est?"≈":"")+esc(money(it.price,2)):"—")+'</span>'+(it.dp!=null?'<span class="'+pillCls(it.dp)+'">'+esc(pct(it.dp))+' hoy</span>':'')+'</div>'+
+      (qt?'<p class="srcline">Precio de '+esc(qSrc(qt).long)+'.</p>':'');
+    var body='<div class="cchart" id="cchart"></div><div class="stats">'+statCell("Valor",esc(money(it.val,2)))+statCell("Peso en la cartera",b.tot>0&&it.val!=null?esc(num(it.val/b.tot*100,1))+" %":"—")+
       statCell("Invertido",it.cost!=null?esc(money(it.cost,2)):"—")+statCell("Ganancia",it.gain!=null?gainSpan(it.gain,it.gp,true):"—")+
       (divs.length?statCell("Dividendos cobrados",esc(money(dv,2))):"")+(divs.length?statCell("Pagos",String(divs.length)):"")+'</div>'+
       (p.cEur>0?'<p class="hintline" style="margin:0">El invertido en euros usa el cambio de cada compra, como Revolut.</p>':'')+
@@ -1333,6 +1519,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
       delAsk:"¿Quitar "+p.sym+" de tu cartera?"});
     f.querySelector(".lg").replaceWith(logoNode(p,true));
     f.querySelector("#sheetTitle").textContent=p.name||p.sym;
+    mountChart(f.querySelector("#cchart"),function(r){return posSeries(p,r)},{color:p.kind==="etf"?"--c-etf":"--c-stock",title:"Evolución del precio de "+(p.name||p.sym)});
     f.querySelector("#e-q").value=fmtIn(p.q); f.querySelector("#e-avg").value=p.avg?fmtIn(p.avg,p.avg<10?4:2):"";
   }
 
@@ -1423,8 +1610,9 @@ body.locked .wrap,body.locked .tabbar{display:none}
     var head='<div class="shead"><span class="mark" style="--c:var('+a.c+')">'+esc(a.sym)+'</span><div class="info"><span class="name" id="sheetTitle">'+esc(a.name)+'</span>'+
       '<span class="sub"><span>'+(a.grams?"Precio por gramo y por onza":"Precio por bitcoin")+'</span></span></div></div>'+
       '<div class="price-l"><span class="p">'+esc(u==null?"—":money(u,a.grams?2:0))+(a.grams?'<span style="font-size:.5em"> /g</span>':'')+'</span>'+
-      (c&&typeof c.pct==="number"?'<span class="'+pillCls(c.pct)+'">'+esc(pct(c.pct))+' 24 h</span>':'')+(a.grams&&u!=null?'<span class="muted">'+esc(money(u*OZ,0))+' /oz</span>':'')+'</div>';
-    var body=(it.val!=null?'<div class="stats">'+statCell("Valor",esc(money(it.val,2)))+statCell("Peso en la cartera",b.tot>0?esc(num(it.val/b.tot*100,1))+" %":"—")+
+      (c&&typeof c.pct==="number"?'<span class="'+pillCls(c.pct)+'">'+esc(pct(c.pct))+' 24 h</span>':'')+(a.grams&&u!=null?'<span class="muted">'+esc(money(u*OZ,0))+' /oz</span>':'')+'</div>'+
+      (c?'<p class="srcline">Precio de CoinGecko, '+esc(COIN_SRC[k])+' · actualizado '+esc(c.t&&new Date(c.t).toDateString()!==new Date().toDateString()?hm(c.t):"a las "+hm(c.t||market.at))+'</p>':'');
+    var body='<div class="cchart" id="cchart"></div>'+(it.val!=null?'<div class="stats">'+statCell("Valor",esc(money(it.val,2)))+statCell("Peso en la cartera",b.tot>0?esc(num(it.val/b.tot*100,1))+" %":"—")+
         statCell("Invertido",it.cost!=null?esc(money(it.cost,2)):"—")+statCell("Ganancia",it.gain!=null?gainSpan(it.gain,it.gp,true):"—")+'</div>':'')+
       '<div class="fl"><label for="c-q">Cantidad ('+a.unitLabel+')</label><div class="field"><input id="c-q" inputmode="decimal" autocomplete="off"><span class="unit">'+a.unit+'</span></div></div>'+
       '<div class="fl"><label for="c-cost">Lo que pagaste en total (opcional)</label><div class="inline"><div class="field"><input id="c-cost" inputmode="decimal" autocomplete="off" placeholder="Para ver la ganancia"></div>'+curSeg(cst?cst.cur:"EUR")+'</div></div>';
@@ -1436,6 +1624,8 @@ body.locked .wrap,body.locked .tabbar{display:none}
       if(co) state.cost[k]={v:Math.round(co*100)/100,cur:f.querySelector(".seg[data-cur]").dataset.cur}; else delete state.cost[k];
       save(); }});
     f.querySelector("#c-q").value=state.q[k]?fmtIn(state.q[k]):""; f.querySelector("#c-cost").value=cst?fmtIn(cst.v,2):"";
+    mountChart(f.querySelector("#cchart"),function(r){return coinSeries(k,r)},{color:a.c,title:"Evolución del precio de "+a.name,
+      fmt:function(v){return money(v,a.grams?2:(v>=1000?0:2))+(a.grams?" /g":"")}});
   }
   function openFiat(){
     var f=openSheet({title:"Efectivo",body:'<p class="muted">Saldo en cuentas y depósitos. No cuenta como ganancia ni pérdida.</p>'+
@@ -1444,6 +1634,14 @@ body.locked .wrap,body.locked .tabbar{display:none}
         if(!isFinite(n)||n<0) return "Escribe un número igual o mayor que 0, por ejemplo 2.500.";
         state.q.fiat=Math.round(n*100)/100; state.fiatCur=f.querySelector(".seg[data-cur]").dataset.cur; save(); }});
     f.querySelector("#f-q").value=state.q.fiat?fmtIn(state.q.fiat,2):"";
+  }
+  function openDep(){
+    var f=openSheet({title:"Fianza alquiler",body:'<p class="muted">El depósito que entregaste al alquilar el piso. Cuenta en tu patrimonio como dinero tuyo que te devolverán, sin ganancia ni pérdida.</p>'+
+      '<div class="fl"><label for="d-q">Importe de la fianza</label><div class="field"><input id="d-q" inputmode="decimal" autocomplete="off" placeholder="0"><span class="unit">€</span></div></div>',
+      onSave:function(f){ var n=parseNum(f.querySelector("#d-q").value); if(n===null) n=0;
+        if(!isFinite(n)||n<0) return "Escribe un número igual o mayor que 0, por ejemplo 1.200.";
+        state.q.dep=Math.round(n*100)/100; save(); }});
+    f.querySelector("#d-q").value=state.q.dep?fmtIn(state.q.dep,2):"";
   }
   function openKeySheet(){
     var f=openSheet({title:"Clave de Finnhub",saveLabel:"Guardar clave",
@@ -1579,7 +1777,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
     var el=$("cDist"), parts=[];
     if(state.dview==="pos"){
       var its=b.items.filter(function(it){return it.val>0}).sort(function(x,y){return y.val-x.val}), rest=0;
-      its.forEach(function(it,i){ if(i<7) parts.push({n:it.name,v:it.val,c:it.type==="coin"?ASSET[it.key].c:it.type==="fiat"?"--fiat":POS_COLORS[i%POS_COLORS.length]}); else rest+=it.val; });
+      its.forEach(function(it,i){ if(i<7) parts.push({n:it.name,v:it.val,c:it.type==="coin"||it.type==="fiat"?ASSET[it.key].c:POS_COLORS[i%POS_COLORS.length]}); else rest+=it.val; });
       if(rest>0) parts.push({n:"Resto",v:rest,c:"--muted"});
     } else {
       var by={}; b.items.forEach(function(it){ if(it.val>0) by[it.cls]=(by[it.cls]||0)+it.val; });
@@ -1962,64 +2160,79 @@ body.locked .wrap,body.locked .tabbar{display:none}
     function create(){ var r=newCat(inp.value); if(r.err){ err.textContent=r.err; err.hidden=false; return; } err.hidden=true; onPick(r.c.k,true); }
     root.querySelector("[data-create]").addEventListener("click",create);
     inp.addEventListener("keydown",function(ev){ if(ev.key==="Enter"){ ev.preventDefault(); create(); } });
-    wireReorder(root.querySelector(".gpick"));
+    wireReorder(root.querySelector(".gpick"),{onOrder:function(order){
+      var cats=gCats(), moved=order.some(function(k,i){return !cats[i]||cats[i].k!==k});
+      if(moved){ state.gCats=order.map(function(k){return cats.filter(function(c){return c.k===k})[0]}).filter(Boolean)
+        .concat(cats.filter(function(c){return order.indexOf(c.k)<0})); save(); } }});
   }
-  /* mantener pulsada una categoría y arrastrarla para cambiar su orden (se guarda al soltar) */
-  function wireReorder(grid){
-    if(!grid||grid.dataset.reorder) return; grid.dataset.reorder="1";
-    var HOLD=380, SLOP=10, timer=null, start=null, drag=null, justDragged=false;
-    function items(){ return [].slice.call(grid.querySelectorAll("[data-c]")); }
+  /* mantener pulsado un elemento y arrastrarlo para cambiar su orden (se guarda al soltar).
+     Sirve para las categorías de gastos y para los activos de la cartera. Si el dedo llega al borde de la pantalla, la lista se desplaza sola. */
+  function wireReorder(grid,o){
+    if(!grid||grid.dataset.reorder) return; grid.dataset.reorder="1"; o=o||{};
+    var SEL=o.sel||"[data-c]", KEY=o.key||function(el){return el.dataset.c};
+    var HOLD=380, SLOP=10, timer=null, start=null, drag=null, justDragged=false, raf=0;
+    function items(){ return [].slice.call(grid.querySelectorAll(SEL)); }
+    function itemOf(t){ var el=t; while(el&&el!==grid){ if(el.parentNode&&items().indexOf(el)>-1) return el; el=el.parentNode; } return null; }
     function cancelHold(){ clearTimeout(timer); timer=null; start=null; }
     grid.addEventListener("pointerdown",function(ev){
-      var b=ev.target.closest&&ev.target.closest("[data-c]"); if(!b||drag||(ev.pointerType==="mouse"&&ev.button!==0)) return;
-      start={x:ev.clientX,y:ev.clientY,b:b,id:ev.pointerId};
+      var b=itemOf(ev.target); if(!b||drag||(ev.pointerType==="mouse"&&ev.button!==0)) return;
+      if(ev.target.closest&&ev.target.closest(".panel")) return;   // dentro del panel desplegado no se arrastra
+      start={x:ev.clientX,y:ev.clientY,b:b};
       timer=setTimeout(function(){ begin(start.b,start.x,start.y); },HOLD);
     });
     grid.addEventListener("pointermove",function(ev){ if(start&&!drag&&Math.hypot(ev.clientX-start.x,ev.clientY-start.y)>SLOP) cancelHold(); });
     grid.addEventListener("pointercancel",function(){ if(!drag) cancelHold(); });
     grid.addEventListener("pointerup",function(){ if(!drag) cancelHold(); });
-    grid.addEventListener("contextmenu",function(ev){ if(ev.target.closest&&ev.target.closest("[data-c]")) ev.preventDefault(); });
-    // mientras se arrastra, el dedo mueve la categoría y no la hoja
+    grid.addEventListener("contextmenu",function(ev){ if(itemOf(ev.target)) ev.preventDefault(); });
+    // mientras se arrastra, el dedo mueve el elemento y no la página
     grid.addEventListener("touchmove",function(ev){ if(drag) ev.preventDefault(); },{passive:false});
     grid.addEventListener("click",function(ev){ if(justDragged){ ev.stopPropagation(); ev.preventDefault(); justDragged=false; } },true);
+    function scroller(){ for(var el=grid.parentNode;el&&el.nodeType===1;el=el.parentNode){ var oy=getComputedStyle(el).overflowY;
+        if((oy==="auto"||oy==="scroll")&&el.scrollHeight>el.clientHeight) return el; } return null; }
     function begin(b,x,y){
-      timer=null; var r=b.getBoundingClientRect();
-      drag={b:b,dx:x-r.left,dy:y-r.top,x:x,y:y};
+      timer=null; if(o.onStart) o.onStart();
+      var r=b.getBoundingClientRect(), dy=y-r.top; if(dy<0||dy>r.height) dy=r.height/2;
+      drag={b:b,dx:x-r.left,dy:dy,x:x,y:y,sc:scroller()};
       b.classList.add("dragging"); grid.classList.add("reordering");
       try{ navigator.vibrate&&navigator.vibrate(12); }catch(e){}
       document.addEventListener("pointermove",move); document.addEventListener("pointerup",end); document.addEventListener("pointercancel",end);
-      place();
+      place(); raf=requestAnimationFrame(edge);
     }
-    function place(){   // deja la categoría bajo el dedo, esté donde esté ahora en la cuadrícula
+    function place(){   // deja el elemento bajo el dedo, esté donde esté ahora en la lista
       var b=drag.b; b.style.transform=""; var r=b.getBoundingClientRect();
-      b.style.transform="translate("+(drag.x-drag.dx-r.left)+"px,"+(drag.y-drag.dy-r.top)+"px) scale(1.04)";
+      b.style.transform="translate("+(drag.x-drag.dx-r.left)+"px,"+(drag.y-drag.dy-r.top)+"px) scale(1.03)";
     }
-    function move(ev){
-      if(!drag) return; drag.x=ev.clientX; drag.y=ev.clientY;
-      // casilla bajo el dedo según su sitio en la cuadrícula (no según dónde se ve a mitad de animación)
+    function edge(){   // desplazamiento automático cerca de los bordes
+      if(!drag) return;
+      if(!drag.moved){ raf=requestAnimationFrame(edge); return; }   // no desplazar hasta que el dedo empiece a moverse
+      var sc=drag.sc, top=sc?sc.getBoundingClientRect().top:0, bot=sc?sc.getBoundingClientRect().bottom:window.innerHeight-90, sp=0;
+      if(drag.y<top+70) sp=-Math.min(14,(top+70-drag.y)/4+3); else if(drag.y>bot-70) sp=Math.min(14,(drag.y-(bot-70))/4+3);
+      if(sp){ if(sc) sc.scrollTop+=sp; else window.scrollBy(0,sp); reorder(); place(); }
+      raf=requestAnimationFrame(edge);
+    }
+    function move(ev){ if(!drag) return; drag.x=ev.clientX; drag.y=ev.clientY;
+      if(!drag.moved&&Math.hypot(drag.x-start.x,drag.y-start.y)>SLOP) drag.moved=true; reorder(); place(); }
+    function reorder(){
+      // elemento bajo el dedo según su sitio en la lista (no según dónde se ve a mitad de animación)
       var g=grid.getBoundingClientRect(), px=drag.x-g.left-grid.clientLeft, py=drag.y-g.top-grid.clientTop, list=items();
       var t=list.filter(function(el){ return el!==drag.b&&px>=el.offsetLeft&&px<el.offsetLeft+el.offsetWidth&&py>=el.offsetTop&&py<el.offsetTop+el.offsetHeight; })[0];
-      if(t){
-        var before=list.map(function(el){return el.getBoundingClientRect()});
-        var from=list.indexOf(drag.b), to=list.indexOf(t);
-        grid.insertBefore(drag.b,from<to?t.nextSibling:t);
-        list.forEach(function(el,i){ if(el===drag.b) return;   // las demás se deslizan a su nuevo sitio
-          el.style.transition="none"; el.style.transform="";
-          var a=el.getBoundingClientRect(), dx=before[i].left-a.left, dy=before[i].top-a.top; if(!dx&&!dy) return;
-          el.style.transform="translate("+dx+"px,"+dy+"px)"; el.getBoundingClientRect();
-          el.style.transition="transform .18s ease"; el.style.transform=""; });
-      }
-      place();
+      if(!t) return;
+      var before=list.map(function(el){return el.getBoundingClientRect()});
+      var from=list.indexOf(drag.b), to=list.indexOf(t);
+      grid.insertBefore(drag.b,from<to?t.nextSibling:t);
+      list.forEach(function(el,i){ if(el===drag.b) return;   // los demás se deslizan a su nuevo sitio
+        el.style.transition="none"; el.style.transform="";
+        var a=el.getBoundingClientRect(), dx=before[i].left-a.left, dy=before[i].top-a.top; if(!dx&&!dy) return;
+        el.style.transform="translate("+dx+"px,"+dy+"px)"; el.getBoundingClientRect();
+        el.style.transition="transform .18s ease"; el.style.transform=""; });
     }
     function end(){
       document.removeEventListener("pointermove",move); document.removeEventListener("pointerup",end); document.removeEventListener("pointercancel",end);
+      cancelAnimationFrame(raf);
       if(!drag) return; var b=drag.b; drag=null; start=null;
       b.classList.remove("dragging"); grid.classList.remove("reordering"); b.style.transform="";
       justDragged=true; setTimeout(function(){ justDragged=false; },350);
-      var order=items().map(function(el){return el.dataset.c}), cats=gCats();
-      var moved=order.some(function(k,i){return !cats[i]||cats[i].k!==k});
-      if(moved){ state.gCats=order.map(function(k){return cats.filter(function(c){return c.k===k})[0]}).filter(Boolean)
-        .concat(cats.filter(function(c){return order.indexOf(c.k)<0})); save(); }
+      if(o.onOrder) o.onOrder(items().map(KEY));
     }
   }
 
@@ -2357,6 +2570,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
     for(var i=0;i<COINS.length;i++){ var a=COINS[i], pu=coinUSD(a.key), q=state.q[a.key]||0; if(pu==null) return;
       v[a.key]=Math.round(pu*q*100)/100; if(q>0){ h["_"+a.key]=[q,Math.round(pu*1e4)/1e4]; var c=state.cost[a.key]; if(c) inv+=c.cur==="USD"?c.v:c.v*r; else invOk=false; } }
     var f=state.q.fiat||0; v.fiat=Math.round((state.fiatCur==="USD"?f:f*r)*100)/100; if(v.fiat>0){ h._fiat=[v.fiat,1]; inv+=v.fiat; }
+    v.dep=Math.round((state.q.dep||0)*r*100)/100; if(v.dep>0){ h._dep=[v.dep,1]; inv+=v.dep; }
     var now=Date.now(), k=ym(), d=dayKey(now), rec={at:now,rate:r,v:v,h:h}, spy=spyPrice();
     if(spy) rec.spy=Math.round(spy*100)/100; if(invOk&&inv>0) rec.inv=Math.round(inv*100)/100;
     function same(o){ return o&&JSON.stringify(o.v)===JSON.stringify(v)&&JSON.stringify(o.h||{})===JSON.stringify(h)&&Math.abs(o.rate-r)<1e-6; }
@@ -2404,7 +2618,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
     setStatus(age<150000?"live":"stale",(age<150000?"En directo · ":"Último dato · ")+dayClock(market.at)) }
   function thin(arr){ if(!Array.isArray(arr)) return null; var out=[],step=Math.max(1,Math.floor(arr.length/48)); for(var i=0;i<arr.length;i+=step) out.push(arr[i]); if(out[out.length-1]!==arr[arr.length-1]) out.push(arr[arr.length-1]); return out; }
   function load(){
-    if(!started) return; loadEU(); loadStocks();
+    if(!started) return; loadEU(); loadStocks(); loadSpxSpark();
     if(inflight) return; inflight=true;
     var url=API+"?vs_currency=usd&ids="+COINS.map(function(a){return a.id}).concat([SPX_ID,FX_ID]).join(",")+"&sparkline=true&price_change_percentage=24h";
     if(!market) setStatus("loading","Conectando…");
@@ -2414,7 +2628,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
       return r.json();
     }).then(function(list){
       if(!Array.isArray(list)) throw new Error("formato");
-      var by={}; list.forEach(function(c){by[c.id]={price:c.current_price,pct:c.price_change_percentage_24h,spark:thin(c.sparkline_in_7d&&c.sparkline_in_7d.price)}});
+      var by={}; list.forEach(function(c){by[c.id]={price:c.current_price,pct:c.price_change_percentage_24h,spark:thin(c.sparkline_in_7d&&c.sparkline_in_7d.price),t:Date.parse(c.last_updated)||null}});
       var fx=by[FX_ID]&&by[FX_ID].price, r=fx>0.5&&fx<2?fx:(market&&market.rate)||null; delete by[FX_ID];
       market={base:"USD",at:Date.now(),rate:r,by:by}; put(LS_MKT,market); liveStatus(); render();
     }).catch(function(e){
@@ -2443,7 +2657,7 @@ body.locked .wrap,body.locked .tabbar{display:none}
       var j=JSON.parse(txt), d=j&&(j.app==="jxxvault"||j.app==="vaultjxxv"||j.app==="mi-cartera")?j.data:null;
       if(!d) throw new Error("no");
       if(!confirm("Esto sustituirá los datos de este móvil por los de la copia. ¿Continuar?")) return;
-      state.q={spx:0,gold:0,btc:0,silver:0,fiat:0}; state.fiatCur="EUR"; state.days={}; state.pos=[]; state.tx=[]; state.cost={}; state.imp=null; state.gastos=[]; state.gRules={}; state.gImp=null; state.gCats=[];
+      state.q={spx:0,gold:0,btc:0,silver:0,fiat:0,dep:0}; state.fiatCur="EUR"; state.aOrder=[]; state.days={}; state.pos=[]; state.tx=[]; state.cost={}; state.imp=null; state.gastos=[]; state.gRules={}; state.gImp=null; state.gCats=[];
       stocks={}; metaTried={}; applySaved(d); save(); lastVals={}; render(); loadStocks();
       backupMsg("Copia importada: "+state.pos.length+" acciones y ETFs, "+state.income.length+" ingresos, "+Object.keys(state.snaps).length+" meses y "+Object.keys(state.days).length+" días con foto.");
     }).catch(function(){ backupMsg("Ese archivo no es una copia de Jxxvault."); });

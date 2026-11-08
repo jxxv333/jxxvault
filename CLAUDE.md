@@ -23,6 +23,7 @@ Todo cambio se hace pensando en ese paso final. Si algo nuevo choca con estas re
 ## Puntos conocidos para el paso a APK
 
 - **ETFs europeos:** `repoFetch()` lee `data/precios.json` e `historico.json`, que genera `.github/workflows/precios.yml`. En la APK habrá que pedir a Yahoo directamente.
+- **Históricos de acciones y ETFs (gráficos):** `stockHist()` lee la rama `datos` (`h/<SÍMBOLO>.json`), que publica `.github/workflows/historico.yml` con un catálogo amplio para no revelar las posiciones. En la APK, `stockHist()` pedirá el histórico a Yahoo directamente y el catálogo dejará de hacer falta. Oro, plata y bitcoin (`coinHist()`) ya van directos a CoinGecko.
 - **Huella:** el bloque `huella (WebAuthn + PRF)` y el modo «llave» con IndexedDB necesitan un complemento biométrico nativo.
 - **Copia de seguridad:** el bloque `copia de seguridad` usa `URL.createObjectURL` + `a.download`.
 - **Service worker:** se registra al final del script (`navigator.serviceWorker.register`). Hay que saltarlo en la APK.

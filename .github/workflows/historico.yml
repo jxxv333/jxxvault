@@ -1,0 +1,162 @@
+name: Históricos
+# Dos veces cada día laborable (y a mano desde la pestaña Actions) descarga de Yahoo el histórico de precios de un
+# catálogo amplio de acciones y ETFs: el S&P 500, el Nasdaq-100, grandes empresas extranjeras que cotizan en EE. UU.,
+# ETFs de EE. UU. y los ETFs europeos de la app. Por cada uno guarda unos 400 días de cierres y la última semana hora a hora.
+# El catálogo es genérico a propósito: así este repositorio público no revela qué acciones tienes.
+# La app solo descarga los archivos de tus posiciones, para el minigráfico y el gráfico de evolución.
+# Todo se publica en la rama «datos», que se sobrescribe en cada ejecución para que el repositorio no engorde.
+on:
+  schedule:
+    - cron: "40 11,21 * * 1-5"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: historico
+jobs:
+  historico:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet yfinance lxml
+      - name: Descargar históricos de Yahoo
+        shell: python
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          import io, json, os, time, pathlib, urllib.request
+          import pandas as pd
+          import yfinance as yf
+
+          REPO = os.environ.get("REPO", "")
+          OUT = pathlib.Path("salida/h"); OUT.mkdir(parents=True, exist_ok=True)
+          UA = {"User-Agent": "Mozilla/5.0 (jxxvault; historico de precios)"}
+
+          # Símbolo en la app -> símbolo en Yahoo (ETFs europeos en Xetra, en euros)
+          EUROPA = {"VUAA": "VUAA.DE", "VUSA": "VUSA.DE", "SXR8": "SXR8.DE", "EUNL": "EUNL.DE", "XDWD": "XDWD.DE",
+                    "VWCE": "VWCE.DE", "VGWL": "VGWL.DE", "EQQQ": "EQQQ.DE", "SXRV": "SXRV.DE", "QDVE": "QDVE.DE",
+                    "IS3N": "IS3N.DE", "4GLD": "4GLD.DE"}
+          ETFS_US = ["SPY", "VOO", "IVV", "SPLG", "QQQ", "QQQM", "URTH", "VT", "XLK", "VGT", "EEM", "VTI", "SCHD", "VUG", "VTV",
+                     "ARKK", "GLD", "SLV", "IAU", "TLT", "BND", "VEA", "VWO", "IWM", "DIA", "EFA", "ACWI", "SMH", "SOXX", "JEPI",
+                     "VYM", "VIG", "IBIT", "XLE", "XLF", "XLV", "XLY", "XLP", "XLI", "XLU", "VNQ", "SCHG", "RSP", "MTUM", "JEPQ"]
+          # Las más grandes de EE. UU.: siempre dentro, aunque Wikipedia no responda
+          GRANDES = ["AAPL", "MSFT", "NVDA", "GOOGL", "GOOG", "AMZN", "META", "TSLA", "AVGO", "BRK.B", "LLY", "JPM", "V", "MA",
+                     "UNH", "XOM", "JNJ", "WMT", "PG", "HD", "COST", "ORCL", "NFLX", "AMD", "ADBE", "CRM", "KO", "PEP", "MCD",
+                     "DIS", "INTC", "CSCO", "IBM", "QCOM", "TXN", "AMAT", "MU", "PLTR", "UBER", "ABNB", "PYPL", "BA", "CAT",
+                     "GE", "NKE", "SBUX", "PFE", "MRK", "ABBV", "T", "VZ", "BAC", "WFC", "GS", "MS", "C", "AXP", "BLK", "CVX",
+                     "LMT", "RTX", "PANW", "CRWD", "NOW", "INTU", "ISRG", "SNPS", "CDNS", "LRCX", "KLAC", "ADP", "BKNG", "TMUS"]
+          # Grandes empresas que no están en el S&P 500 ni en el Nasdaq-100 pero se compran mucho desde Europa
+          EXTRA = ["TSM", "ASML", "NVO", "BABA", "SAP", "SHOP", "ARM", "SONY", "TM", "UL", "SHEL", "BP", "AZN", "HSBC", "RIO",
+                   "BHP", "MELI", "SE", "PDD", "JD", "NU", "SPOT", "NIO", "LI", "XPEV", "BIDU", "INFY", "HDB", "IBN", "TTE",
+                   "SAN", "BBVA", "ING", "DEO", "BUD", "RACE", "STLA", "NVS", "GSK", "SNY", "MUFG", "SMFG", "COIN", "HOOD",
+                   "MSTR", "RKLB", "SOFI", "IONQ", "RIVN", "LCID", "SNOW", "NET", "U", "RBLX", "AFRM", "UPST", "CELH", "ASTS",
+                   "OKLO", "SMCI", "CRCL", "CRWV", "NBIS", "HIMS", "RDDT", "DUOL", "CAVA", "BRK.A", "TCOM", "CPNG", "GRAB"]
+
+          def wiki(url, columnas):
+              try:
+                  req = urllib.request.Request(url, headers=UA)
+                  html = urllib.request.urlopen(req, timeout=40).read().decode("utf-8")
+                  for t in pd.read_html(io.StringIO(html)):
+                      for c in columnas:
+                          if c in t.columns:
+                              s = [str(x).strip().upper() for x in t[c] if isinstance(x, str) and x.strip()]
+                              if len(s) > 50:
+                                  return s
+              except Exception as e:
+                  print("Wikipedia falló:", url, e)
+              return []
+
+          def anterior():   # catálogo de la ejecución anterior, por si Wikipedia no responde
+              try:
+                  url = f"https://raw.githubusercontent.com/{REPO}/datos/h/_index.json"
+                  with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=30) as r:
+                      return json.load(r).get("s", {})
+              except Exception as e:
+                  print("Sin catálogo anterior:", e)
+                  return {}
+
+          sp500 = wiki("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", ["Symbol"])
+          ndx = wiki("https://en.wikipedia.org/wiki/Nasdaq-100", ["Ticker", "Symbol"])
+          catalogo = {}   # símbolo app -> símbolo Yahoo
+          for s in sp500 + ndx + GRANDES + ETFS_US + EXTRA:
+              catalogo.setdefault(s, s.replace(".", "-"))
+          if len(sp500) < 400:   # Wikipedia no respondió bien: se conserva lo que había
+              for s, y in anterior().items():
+                  catalogo.setdefault(s, y)
+          catalogo.update(EUROPA)
+          print("Catálogo:", len(catalogo), "símbolos (S&P 500:", len(sp500), "· Nasdaq-100:", len(ndx), ")")
+
+          def serie(df, ysym, varios):
+              try:
+                  if isinstance(df.columns, pd.MultiIndex):
+                      if ysym not in df.columns.get_level_values(0):
+                          return None
+                      s = df[ysym]["Close"]
+                  else:
+                      s = df["Close"]
+                  s = s.dropna()
+                  return s if len(s) else None
+              except Exception:
+                  return None
+
+          def bajar(yticks, **kw):
+              res = {}
+              for i in range(0, len(yticks), 80):
+                  lote = yticks[i:i + 80]
+                  for intento in range(3):
+                      try:
+                          df = yf.download(lote, group_by="ticker", auto_adjust=False, progress=False, threads=True, **kw)
+                          break
+                      except Exception as e:
+                          print("Lote falló, reintento:", e)
+                          time.sleep(10 * (intento + 1))
+                  else:
+                      continue
+                  for y in lote:
+                      s = serie(df, y, len(lote) > 1)
+                      if s is not None:
+                          res[y] = s
+                  time.sleep(2)
+              return res
+
+          def num(x):
+              return float(f"{float(x):.6g}")
+
+          yticks = sorted(set(catalogo.values()))
+          diario = bajar(yticks, period="2y", interval="1d")
+          horas = bajar(yticks, period="7d", interval="60m")
+          print("Con cierres diarios:", len(diario), "· con datos por horas:", len(horas))
+
+          ahora = int(time.time())
+          indice = {}
+          for sym, y in sorted(catalogo.items()):
+              d = diario.get(y)
+              if d is None or len(d) < 5:
+                  continue
+              d = d.iloc[-400:]
+              o = {"s": sym, "y": y, "cur": "EUR" if y.endswith(".DE") else "USD", "t": ahora,
+                   "d": [x.strftime("%Y-%m-%d") for x in d.index], "c": [num(v) for v in d.values]}
+              hh = horas.get(y)
+              if hh is not None and len(hh) > 1:
+                  o["ht"] = [int(x.timestamp()) + 3600 for x in hh.index]   # fin de cada hora
+                  o["hc"] = [num(v) for v in hh.values]
+              (OUT / f"{sym}.json").write_text(json.dumps(o, separators=(",", ":")))
+              indice[sym] = y
+          (OUT / "_index.json").write_text(json.dumps({"v": 1, "t": ahora, "s": indice}, separators=(",", ":")))
+          print("Archivos escritos:", len(indice))
+          if len(indice) < 50:
+              raise SystemExit("Muy pocos símbolos descargados: no se publica para no borrar los datos buenos.")
+      - name: Publicar en la rama datos
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          cd salida
+          git init -q -b datos
+          git config user.name "historico-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Históricos de precios"
+          git push -q --force "https://x-access-token:${TOKEN}@github.com/${REPO}.git" datos
